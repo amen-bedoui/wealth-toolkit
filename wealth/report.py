@@ -55,7 +55,7 @@ DISCLAIMER = ("Document pédagogique généré par un projet open source. Hypoth
 
 
 def planner_report(path, client: dict, profile: str, weights: pd.Series, stats: dict, summary: pd.DataFrame,
-                   prob: float, goal, contribution_needed: float):
+                   prob: float, goal, contribution_needed: float, tax_cmp: dict | None = None, succession: list | None = None):
     from .data import CMA
     doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=1.8 * cm, bottomMargin=1.6 * cm)
     el = [Paragraph("Projection patrimoniale", H1),
@@ -89,7 +89,21 @@ def planner_report(path, client: dict, profile: str, weights: pd.Series, stats: 
                      f"Probabilité d'atteinte : <b>{pct(prob, 0)}</b>. Patrimoine réel à l'horizon : médiane {eur(last['P50'])}, "
                      f"scénario défavorable (P5) {eur(last['P5'])}, scénario favorable (P95) {eur(last['P95'])}.", P),
            Paragraph(f"Versement annuel nécessaire pour 70 % de chances d'atteindre l'objectif : <b>{eur(contribution_needed)}</b>.", P),
-           Spacer(1, 10), Paragraph(DISCLAIMER, SMALL)]
+           ]
+    if tax_cmp:
+        from .tax import validity_date
+        el.append(Paragraph("4. Patrimoine net d'impôt selon l'enveloppe (euros d'aujourd'hui)", H2))
+        rows = [["Enveloppe", "Défavorable (P5)", "Médian", "Favorable (P95)", "Poids fiscal médian"]]
+        for env, v in tax_cmp.items():
+            rows.append([env, eur(v["P5"]), eur(v["P50"]), eur(v["P95"]), pct(v["poids_fiscal_median"])])
+        el.append(_table(rows, [4.5 * cm, 3.2 * cm, 3 * cm, 3.2 * cm, 3.2 * cm]))
+        el.append(Paragraph(f"Liquidation totale à l'horizon, flat tax et prélèvements sociaux 2026 (barèmes au {validity_date()}). "
+                            "Hypothèses simplifiées, voir le README.", SMALL))
+    if succession:
+        el.append(Paragraph("5. Transmission : droits selon le lieu de résidence", H2))
+        rows = [["Montant", "Lien", "Droits en France", "Droits à Monaco"]] + succession
+        el.append(_table(rows, [3.5 * cm, 4 * cm, 4.5 * cm, 4.5 * cm]))
+    el += [Spacer(1, 10), Paragraph(DISCLAIMER, SMALL)]
     doc.build(el)
 
 

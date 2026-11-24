@@ -1,0 +1,48 @@
+{
+  "date_validite": "2026-11-24",
+  "avertissement": "Paramètres simplifiés vérifiés le 2026-11-24. À revalider à chaque loi de finances. Ne remplace pas un conseil fiscal.",
+  "sources": {
+    "prelevements_sociaux": "https://www.lafinancepourtous.com/pratique/impots/l-impot-sur-le-revenu/comprendre-le-jargon-des-impots/les-prelevements-sociaux-2 (LFSS 2026)",
+    "assurance_vie": "https://www.service-public.gouv.fr/particuliers/vosdroits/F22414 ; https://www.economie.gouv.fr/particuliers/gerer-mon-argent/gerer-mon-budget-et-mon-epargne/quelle-est-la-fiscalite-de-lassurance",
+    "succession_donation_france": "https://www.service-public.gouv.fr/particuliers/vosdroits/F35794 ; https://www.impots.gouv.fr/particulier/calcul-et-paiement-des-droits ; https://www.justice.fr/fiche/droits-donation-calcul-paiement",
+    "monaco": "https://www.senat.fr/rap/l20-301/l20-3012.html (tarifs France / Monaco) ; https://monservicepublic.gouv.mc/en/themes/tax/information/general-information/inheritance-tax"
+  },
+  "france": {
+    "ir_pfu": 0.128,
+    "ps_standard": 0.186,
+    "ps_assurance_vie": 0.172,
+    "assurance_vie": {
+      "seuil_8_ans": 8,
+      "taux_avant_8_ans": 0.128,
+      "taux_apres_8_ans_primes_inf_150k": 0.075,
+      "taux_apres_8_ans_primes_sup_150k": 0.128,
+      "seuil_primes": 150000,
+      "abattement_annuel_seul": 4600,
+      "abattement_annuel_couple": 9200
+    },
+    "pea": {"seuil_exoneration_ir_ans": 5}
+  },
+  "monaco_resident_non_francais": {
+    "ir_revenus_capital": 0.0,
+    "ps": 0.0,
+    "a_verifier": "Hypothèse : pas d'impôt sur le revenu à Monaco pour un résident non français. Les ressortissants français résidant à Monaco restent imposés en France (convention franco-monégasque) : cas non modélisé. À valider avec un fiscaliste."
+  },
+  "succession_france": {
+    "ligne_directe": {
+      "abattement": 100000,
+      "bareme": [[8072, 0.05], [12109, 0.10], [15932, 0.15], [552324, 0.20], [902838, 0.30], [1805677, 0.40], [null, 0.45]]
+    },
+    "freres_soeurs": {"abattement": 15932, "bareme": [[24430, 0.35], [null, 0.45]]},
+    "neveux_nieces": {"abattement": 7967, "taux": 0.55},
+    "tiers": {"abattement": 1594, "taux": 0.60},
+    "conjoint_pacs": {"exonere": true},
+    "donation": {"periode_rappel_ans": 15}
+  },
+  "succession_monaco": {
+    "ligne_directe": {"taux": 0.0},
+    "conjoint": {"taux": 0.0},
+    "freres_soeurs": {"taux": 0.08},
+    "tiers": {"taux": 0.16},
+    "note": "Monaco n'impose que les biens situés à Monaco ; les taux hors ligne directe varient selon le degré (8 % à 13 % pour parents éloignés, 16 % entre tiers). Cas simplifié."
+  }
+}

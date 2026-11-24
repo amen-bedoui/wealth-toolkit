@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse, os
 import pandas as pd
-from . import planner, portfolio, structured, report, data, market_data, backtest
+from . import planner, portfolio, structured, report, data, market_data, backtest, tax
 
 
 def _history(real: bool, cache_dir: str = "data"):
@@ -29,7 +29,13 @@ def run_demo(out: str = "reports", real: bool = False):
     prob = planner.goal_probability(paths, goal, sc.inflation)
     need = planner.required_contribution(w, sc, goal, 0.7)
     report.planner_report(f"{out}/projection_patrimoniale.pdf", {"nom": "Client exemple"}, prof, w, stats,
-                          planner.summarize(paths, sc.inflation), prob, goal, need)
+                          planner.summarize(paths, sc.inflation), prob, goal, need,
+                          tax_cmp=tax.compare_envelopes(paths, sc.patrimoine_initial + sum(sc.versement_annuel * (1 + sc.inflation) ** t for t in range(goal.horizon_annees)),
+                                                        goal.horizon_annees, sc.inflation),
+                          succession=[[f"{m:,.0f} €".replace(",", " "), lien.replace("_", " "),
+                                       f"{tax.inheritance_tax(m, rel)['droits']:,.0f} €".replace(",", " "),
+                                       f"{tax.inheritance_tax(m, rel, 'Monaco')['droits']:,.0f} €".replace(",", " ")]
+                                      for m, lien, rel in [(500_000, "enfant", "ligne_directe"), (500_000, "frère / sœur", "freres_soeurs"), (500_000, "tiers", "tiers")]])
     # 2. Suivi de portefeuille
     hist, label = _history(real)
     target = planner.target_allocation("Équilibré")
