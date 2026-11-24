@@ -10,7 +10,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 
 NAVY = "#1f3a5f"
 _ss = getSampleStyleSheet()
@@ -50,8 +50,9 @@ def _table(rows, col_widths=None, header=True):
     return t
 
 
-DISCLAIMER = ("Document pédagogique généré par un projet open source. Hypothèses illustratives et données simulées : "
-              "ne constitue ni un conseil en investissement ni une offre. Les performances passées ou simulées ne préjugent pas des performances futures.")
+DISCLAIMER = ("Document pédagogique généré par un projet open source. Les projections reposent sur des hypothèses de marché illustratives ; "
+              "les données historiques éventuelles proviennent de sources publiques (ETF cotés). Ne constitue ni un conseil en investissement "
+              "ni un conseil fiscal, ni une offre. Les performances passées ou simulées ne préjugent pas des performances futures.")
 
 
 def planner_report(path, client: dict, profile: str, weights: pd.Series, stats: dict, summary: pd.DataFrame,

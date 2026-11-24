@@ -1,6 +1,5 @@
 """Backtest des profils de risque sur historique réel (ou tout DataFrame de rendements mensuels)."""
 from __future__ import annotations
-import numpy as np
 import pandas as pd
 from . import planner, portfolio
 

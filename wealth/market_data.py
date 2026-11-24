@@ -13,10 +13,10 @@ import pandas as pd
 # Chaque ticker est modifiable : `fetch_prices(tickers=...)`.
 DEFAULT_TICKERS = {
     "Liquidités": "XEON.DE",                       # Xtrackers EUR Overnight Rate Swap
-    "Obligations souveraines": "IBGL.AS",          # iShares Euro Govt Bond (proxy zone euro)
+    "Obligations souveraines": "EUNH.DE",          # iShares Core Euro Government Bond
     "Obligations Investment Grade": "IEAC.AS",     # iShares Core EUR Corp Bond
     "Actions Monde": "IWDA.AS",                    # iShares Core MSCI World
-    "Actions Europe": "MEUD.PA",                   # Amundi Stoxx Europe 600
+    "Actions Europe": "EXSA.DE",                   # iShares STOXX Europe 600
     "Immobilier coté": "IPRP.AS",                  # iShares European Property Yield
     "Or": "SGLD.L",                                # Invesco Physical Gold (USD)
 }
@@ -103,4 +103,25 @@ def blend_with_priors(calib_table: pd.DataFrame, priors: pd.DataFrame, weight_hi
     common = [a for a in calib_table.index if a in priors.index]
     out.loc[common, "volatilite"] = weight_hist * calib_table.loc[common, "volatilite"] + (1 - weight_hist) * priors.loc[common, "volatilite"]
     out.loc[common, "rendement"] = weight_hist * calib_table.loc[common, "rendement"] + (1 - weight_hist) * priors.loc[common, "rendement"]
+    return out
+
+
+def _nearest_psd(c: np.ndarray) -> np.ndarray:
+    """Rend une matrice de corrélation symétrique semi-définie positive (écrêtage des valeurs propres) à diagonale 1."""
+    c = (c + c.T) / 2
+    w, v = np.linalg.eigh(c)
+    c = v @ np.diag(np.clip(w, 1e-8, None)) @ v.T
+    d = np.sqrt(np.diag(c))
+    c = c / np.outer(d, d)
+    np.fill_diagonal(c, 1.0)
+    return c
+
+
+def blend_correlations(hist_corr: pd.DataFrame, priors: pd.DataFrame, weight_hist: float = 0.5) -> pd.DataFrame:
+    """Corrélations retenues : moyenne pondérée historique / a priori sur les classes communes, puis matrice remise
+    en forme semi-définie positive. Les classes absentes (private equity) gardent leurs corrélations a priori."""
+    out = priors.copy()
+    common = [a for a in hist_corr.index if a in priors.index]
+    out.loc[common, common] = weight_hist * hist_corr.loc[common, common].values + (1 - weight_hist) * priors.loc[common, common].values
+    out.loc[:, :] = _nearest_psd(out.values)
     return out

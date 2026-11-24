@@ -1,6 +1,6 @@
 """Planification patrimoniale : profil de risque, allocation cible, projection Monte Carlo."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from .data import ASSETS, CMA, cov_matrix, simulate_annual_returns

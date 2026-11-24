@@ -27,6 +27,8 @@ def _rc_block():
 
 def run_demo(out: str = "reports", real: bool = False):
     os.makedirs(out, exist_ok=True)
+    if real and data.load_calibration():
+        print("Hypothèses calibrées sur données réelles chargées (data/calibration.json).")
     # 1. Planificateur
     prof = planner.risk_profile(horizon_years=15, loss_tolerance=3, experience=2, income_stability=3)
     w = planner.target_allocation(prof)
@@ -79,9 +81,12 @@ def run_backtest(out: str = "docs"):
     table = backtest.run(r)
     md = backtest.to_markdown(table, (str(r.index[0].date()), str(r.index[-1].date())), len(r), list(r.columns))
     cal = market_data.calibrate(r)
-    blended = market_data.blend_with_priors(cal["table"], data.CMA)
+    blended = market_data.blend_with_priors(cal["table"], data._DEFAULT_CMA)
+    corr = market_data.blend_correlations(cal["correlations"], data._DEFAULT_CORR)
+    data.save_calibration(blended, corr, "data/calibration.json")
     md += "\n\n## Calibrage des hypothèses de marché\n\n" + \
-          f"Historique {cal['periode'][0]} → {cal['periode'][1]} ({cal['n_mois']} mois). Hypothèses retenues = 50 % historique + 50 % a priori de long terme.\n\n" + \
+          f"Historique {cal['periode'][0]} → {cal['periode'][1]} ({cal['n_mois']} mois). Hypothèses retenues = 50 % historique + 50 % a priori de long terme (rendements, volatilités et corrélations). "\
+          "Elles sont enregistrées dans data/calibration.json et utilisées automatiquement par `demo --real` et par l'application.\n\n" + \
           "| Classe | Rendement hist. | Vol. hist. | Rendement retenu | Vol. retenue |\n|---|---|---|---|---|\n" + \
           "\n".join(f"| {a} | {cal['table'].loc[a,'rendement']*100:.1f} % | {cal['table'].loc[a,'volatilite']*100:.1f} % | "
                     f"{blended.loc[a,'rendement']*100:.1f} % | {blended.loc[a,'volatilite']*100:.1f} % |" for a in cal["table"].index)

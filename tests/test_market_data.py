@@ -85,3 +85,42 @@ def test_worst_year_ignores_incomplete_years():
     r = pd.Series([0.01] * 12 + [-0.5, -0.5], index=idx)   # 2022 : 2 mois seulement, très négatifs
     yr, w = backtest.worst_calendar_year(r)
     assert yr == 2021 and w > 0
+
+
+# ---------- calibrage appliqué ----------
+@pytest.fixture
+def clean_assumptions():
+    data.reset_assumptions()
+    yield
+    data.reset_assumptions()
+
+
+def test_blend_correlations_is_valid_correlation_matrix():
+    idx = pd.date_range("2015-01-31", periods=120, freq="ME")
+    rng = np.random.default_rng(3)
+    r = pd.DataFrame(rng.normal(0.005, 0.03, (120, 4)), index=idx, columns=data.ASSETS[3:7])
+    out = market_data.blend_correlations(r.corr(), data.CORR)
+    assert np.allclose(np.diag(out.values), 1.0) and np.allclose(out.values, out.values.T)
+    assert np.linalg.eigvalsh(out.values).min() > -1e-9
+    assert out.loc["Private equity", "Actions Monde"] == pytest.approx(data.CORR.loc["Private equity", "Actions Monde"], abs=0.1)
+
+
+def test_apply_calibration_changes_planner_assumptions(clean_assumptions):
+    from wealth import planner
+    w = planner.target_allocation("Dynamique")
+    before = planner.portfolio_stats(w)["rendement_espere"]
+    new = data.CMA.copy()
+    new["rendement"] = new["rendement"] + 0.02
+    data.apply_calibration(new)
+    assert planner.portfolio_stats(w)["rendement_espere"] == pytest.approx(before + 0.02, abs=1e-9)
+    data.reset_assumptions()
+    assert planner.portfolio_stats(w)["rendement_espere"] == pytest.approx(before)
+
+
+def test_save_and_load_calibration_roundtrip(tmp_path, clean_assumptions):
+    p = str(tmp_path / "cal.json")
+    assert data.load_calibration(p) is False          # pas de fichier : rien n'est appliqué
+    t = data._DEFAULT_CMA.copy(); t["volatilite"] = t["volatilite"] * 1.1
+    data.save_calibration(t, data._DEFAULT_CORR, p)
+    assert data.load_calibration(p) is True
+    assert data.CMA.loc["Actions Monde", "volatilite"] == pytest.approx(data._DEFAULT_CMA.loc["Actions Monde", "volatilite"] * 1.1)

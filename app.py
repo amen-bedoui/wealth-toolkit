@@ -1,14 +1,15 @@
 """Application Streamlit : streamlit run app.py"""
 import os
 import tempfile
-import numpy as np
 import pandas as pd
 import streamlit as st
 from wealth import planner, portfolio, structured, tax, data, market_data, report
 
 st.set_page_config(page_title="Wealth Toolkit", layout="wide")
+CALIBRATED = data.load_calibration()   # hypothèses calibrées sur données réelles si `wealth backtest` a été lancé
 st.title("Wealth Toolkit")
-st.caption("Outil pédagogique : hypothèses illustratives, ne constitue pas un conseil en investissement.")
+st.caption("Outil pédagogique, ne constitue pas un conseil en investissement. Hypothèses de marché : "
+           + ("calibrées sur données réelles (50 % historique, 50 % long terme)." if CALIBRATED else "illustratives de long terme."))
 
 eur = lambda x: f"{x:,.0f} €".replace(",", " ")
 pct = lambda x, d=1: f"{x * 100:.{d}f} %".replace(".", ",")
