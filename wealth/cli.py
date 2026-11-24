@@ -17,6 +17,14 @@ def _history(real: bool, cache_dir: str = "data"):
     return data.synthetic_history(n_months=60), "données SIMULÉES"
 
 
+def _rc_block():
+    rc = structured.ReverseConvertible()
+    fair = structured.fair_rc_coupon(rc, 98.0, n_paths=20_000)
+    rc = structured.ReverseConvertible(coupon_annuel=fair)
+    return {"produit": rc, "prix": structured.price_reverse_convertible(rc), "coupon_juste": fair,
+            "comparaison": structured.compare_rc_with_underlying(rc)}
+
+
 def run_demo(out: str = "reports", real: bool = False):
     os.makedirs(out, exist_ok=True)
     # 1. Planificateur
@@ -55,7 +63,8 @@ def run_demo(out: str = "reports", real: bool = False):
     fc = structured.fair_coupon(a, 98.0, n_paths=20_000)
     a = structured.Autocall(coupon_annuel=fc)
     report.structured_report(f"{out}/produits_structures.pdf", a, structured.price_autocall(a), fc,
-                             structured.compare_with_underlying(a), structured.price_capital_protege(structured.CapitalProtege()))
+                             structured.compare_with_underlying(a), structured.price_capital_protege(structured.CapitalProtege()),
+                             rc=_rc_block())
     print(f"Rapports générés dans {out}/")
 
 

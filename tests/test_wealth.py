@@ -170,3 +170,58 @@ def test_capital_protected_payoff_floor():
     p = structured.CapitalProtege()
     pay = structured.payoff_capital_protege(np.array([0.3, 1.0, 1.5]), p, 1.0)
     assert pay.tolist() == [1.0, 1.0, 1.5]
+
+
+# ---------- reverse convertible / phoenix ----------
+def test_rc_zero_vol_pays_nominal_plus_coupon():
+    rc = structured.ReverseConvertible(maturite=1, coupon_annuel=0.08)
+    res = structured.price_reverse_convertible(rc, r=0.03, q=0.0, sigma=1e-9, n_paths=1000)
+    assert res["prix_pct_nominal"] == pytest.approx(1.08 * math.exp(-0.03) * 100, rel=1e-3)
+    assert res["proba_perte_capital"] == 0.0 and res["proba_knock_in"] == 0.0
+
+
+def test_rc_lower_barrier_lowers_knock_in():
+    hi = structured.price_reverse_convertible(structured.ReverseConvertible(barriere=0.8), n_paths=20_000)["proba_knock_in"]
+    lo = structured.price_reverse_convertible(structured.ReverseConvertible(barriere=0.6), n_paths=20_000)["proba_knock_in"]
+    assert lo < hi
+
+
+def test_rc_price_increases_with_coupon_and_decreases_with_vol_risk():
+    a = structured.price_reverse_convertible(structured.ReverseConvertible(coupon_annuel=0.04), n_paths=20_000)["prix_pct_nominal"]
+    b = structured.price_reverse_convertible(structured.ReverseConvertible(coupon_annuel=0.10), n_paths=20_000)["prix_pct_nominal"]
+    assert b > a
+    v1 = structured.price_reverse_convertible(structured.ReverseConvertible(), sigma=0.15, n_paths=20_000)["prix_pct_nominal"]
+    v2 = structured.price_reverse_convertible(structured.ReverseConvertible(), sigma=0.35, n_paths=20_000)["prix_pct_nominal"]
+    assert v2 < v1     # l'investisseur vend un put : plus de vol = valeur plus basse pour lui
+
+
+def test_rc_loss_probability_bounded_by_knock_in():
+    res = structured.price_reverse_convertible(structured.ReverseConvertible(), n_paths=20_000)
+    assert res["proba_perte_capital"] <= res["proba_knock_in"]
+
+
+def test_fair_rc_coupon_hits_target():
+    rc = structured.ReverseConvertible()
+    c = structured.fair_rc_coupon(rc, 98.0, n_paths=10_000)
+    p = structured.price_reverse_convertible(structured.ReverseConvertible(coupon_annuel=c), n_paths=10_000)["prix_pct_nominal"]
+    assert p == pytest.approx(98.0, abs=0.05)
+
+
+def test_rc_comparison_probabilities_valid():
+    c = structured.compare_rc_with_underlying(structured.ReverseConvertible(), n_paths=10_000)
+    assert 0 <= c["proba_produit_bat_indice"] <= 1 and c["pire_5pct_produit"] > c["pire_5pct_indice"]
+
+
+def test_phoenix_memory_adds_value():
+    a = structured.price_autocall(structured.Phoenix(memoire=True), n_paths=20_000)["prix_pct_nominal"]
+    b = structured.price_autocall(structured.Phoenix(memoire=False), n_paths=20_000)["prix_pct_nominal"]
+    assert a >= b
+
+
+def test_phoenix_coupon_barrier_distinct_from_capital_barrier():
+    ph = structured.Phoenix()
+    assert ph.barriere_coupon > ph.barriere_capital and isinstance(ph, structured.Autocall)
+    # un coupon plus facile à toucher vaut plus cher
+    easy = structured.price_autocall(structured.Phoenix(barriere_coupon=0.6), n_paths=20_000)["prix_pct_nominal"]
+    hard = structured.price_autocall(structured.Phoenix(barriere_coupon=0.9), n_paths=20_000)["prix_pct_nominal"]
+    assert easy > hard

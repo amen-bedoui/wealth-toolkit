@@ -168,3 +168,74 @@ def fair_coupon(p: Autocall, cible_prix_pct: float = 98.0, **kw) -> float:
         else:
             hi = mid
     return (lo + hi) / 2
+
+
+# ---------------------------------------------------------------------------------------------
+# Reverse convertible à barrière (knock-in) et Phoenix
+# ---------------------------------------------------------------------------------------------
+@dataclass
+class ReverseConvertible:
+    """Reverse convertible à barrière désactivante (knock-in) : coupon fixe garanti (hors défaut de l'émetteur).
+    À l'échéance : nominal si l'indice n'a JAMAIS touché la barrière, ou si l'indice final >= strike ;
+    sinon livraison de l'indice, soit nominal * S_T/S_0 (perte en capital)."""
+    maturite: float = 1.0             # années
+    coupon_annuel: float = 0.08
+    barriere: float = 0.70            # barrière de knock-in, % du niveau initial (observation quotidienne)
+    strike: float = 1.00
+    nominal: float = 100.0
+    jours_par_an: int = 252
+
+
+def price_reverse_convertible(p: ReverseConvertible, S0=100.0, r=0.025, q=0.03, sigma=0.20,
+                              n_paths=50_000, seed=1) -> dict:
+    n_steps = int(round(p.maturite * p.jours_par_an))
+    paths = simulate_gbm(S0, r, q, sigma, p.maturite, n_steps, n_paths, seed) / S0
+    ki = (paths.min(axis=1) <= p.barriere)
+    sT = paths[:, -1]
+    redemption = np.where(ki & (sT < p.strike), sT, 1.0)
+    cpn = p.coupon_annuel * p.maturite
+    pv = (redemption + cpn) * p.nominal * exp(-r * p.maturite)      # coupon payé à l'échéance (simplification)
+    loss = redemption < 1.0
+    return {
+        "prix_pct_nominal": float(pv.mean() / p.nominal * 100),
+        "proba_knock_in": float(ki.mean()),
+        "proba_perte_capital": float(loss.mean()),
+        "perte_moyenne_si_perte_pct": float((1 - sT[loss]).mean() * 100) if loss.any() else 0.0,
+        "rendement_total_pire_5pct_pct": float(np.percentile(redemption + cpn - 1, 5) * 100),
+    }
+
+
+def fair_rc_coupon(p: ReverseConvertible, cible_prix_pct: float = 98.0, **kw) -> float:
+    lo, hi = 0.0, 1.0
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        q = ReverseConvertible(**{**p.__dict__, "coupon_annuel": mid})
+        if price_reverse_convertible(q, **kw)["prix_pct_nominal"] < cible_prix_pct:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def compare_rc_with_underlying(p: ReverseConvertible, S0=100.0, q=0.03, sigma=0.20, mu=0.07, n_paths=30_000, seed=5) -> dict:
+    """Monde réel : rendement total du reverse convertible vs indice détenu en direct sur la même durée."""
+    n_steps = int(round(p.maturite * p.jours_par_an))
+    price = simulate_gbm(S0, mu, q, sigma, p.maturite, n_steps, n_paths, seed) / S0
+    ki = price.min(axis=1) <= p.barriere
+    sT = price[:, -1]
+    rc = np.where(ki & (sT < p.strike), sT, 1.0) + p.coupon_annuel * p.maturite - 1.0
+    idx = sT * np.exp(q * p.maturite) - 1.0                   # dividendes réinvestis
+    return {"rendement_produit_moyen": float(rc.mean()), "rendement_produit_median": float(np.median(rc)),
+            "rendement_indice_moyen": float(idx.mean()), "rendement_indice_median": float(np.median(idx)),
+            "proba_produit_bat_indice": float((rc > idx).mean()),
+            "pire_5pct_produit": float(np.percentile(rc, 5)), "pire_5pct_indice": float(np.percentile(idx, 5))}
+
+
+@dataclass
+class Phoenix(Autocall):
+    """Phoenix : autocall à coupons conditionnels avec barrière de coupon distincte de la barrière de capital.
+    Valeurs par défaut typiques d'un Phoenix : rappel 100 %, coupon 70 %, capital 60 %, effet mémoire."""
+    barriere_rappel: float = 1.00
+    barriere_coupon: float = 0.70
+    barriere_capital: float = 0.60
+    memoire: bool = True

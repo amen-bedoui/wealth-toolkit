@@ -141,7 +141,7 @@ def portfolio_report(path, name: str, r: pd.Series, bench: pd.Series, summ: dict
     doc.build(el)
 
 
-def structured_report(path, autocall, price: dict, fair_cpn: float, comparison: dict, cp: dict):
+def structured_report(path, autocall, price: dict, fair_cpn: float, comparison: dict, cp: dict, rc=None):
     doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=1.8 * cm, bottomMargin=1.6 * cm)
     a = autocall
     el = [Paragraph("Analyse de produits structurés", H1), Paragraph("1. Autocall à coupons conditionnels (effet mémoire)", H2),
@@ -169,5 +169,19 @@ def structured_report(path, autocall, price: dict, fair_cpn: float, comparison: 
     el += [Paragraph("3. Note à capital protégé", H2),
            Paragraph(f"Décomposition : zéro-coupon {pct(cp['valeur_zero_coupon_pct'] / 100)} + budget d'option {pct(cp['budget_option_pct'] / 100)}. "
                      f"Avec un call ATM à {pct(cp['prix_call_atm_pct'] / 100)}, la participation à la hausse est de {pct(cp['participation_pct'] / 100, 0)} "
-                     "(avant marge de l'émetteur).", P), Spacer(1, 10), Paragraph(DISCLAIMER, SMALL)]
+                     "(avant marge de l'émetteur).", P)]
+    if rc:
+        p, pr, fair, cmp_ = rc["produit"], rc["prix"], rc["coupon_juste"], rc["comparaison"]
+        el += [Paragraph("4. Reverse convertible à barrière", H2),
+               Paragraph(f"Maturité {p.maturite:g} an, barrière de knock-in à {pct(p.barriere, 0)} (observation quotidienne). Coupon qui laisserait 2 % de marge à "
+                         f"l'émetteur : <b>{pct(fair)}</b> par an. Probabilité de touche de la barrière : {pct(pr['proba_knock_in'])}, "
+                         f"probabilité de perte en capital : {pct(pr['proba_perte_capital'])} (perte moyenne {pct(pr['perte_moyenne_si_perte_pct'] / 100, 0)}).", P)]
+        rows = [["", "Produit", "Indice (div. réinv.)"],
+                ["Rendement moyen", pct(cmp_["rendement_produit_moyen"]), pct(cmp_["rendement_indice_moyen"])],
+                ["Rendement médian", pct(cmp_["rendement_produit_median"]), pct(cmp_["rendement_indice_median"])],
+                ["Pire 5 % des cas", pct(cmp_["pire_5pct_produit"]), pct(cmp_["pire_5pct_indice"])]]
+        el += [_table(rows, [6 * cm, 4 * cm, 5 * cm]),
+               Paragraph(f"Probabilité que le produit batte l'indice : <b>{pct(cmp_['proba_produit_bat_indice'], 0)}</b>. "
+                         "Le coupon est fixe mais le capital est exposé en dessous de la barrière : l'investisseur vend un put.", P)]
+    el += [Spacer(1, 10), Paragraph(DISCLAIMER, SMALL)]
     doc.build(el)
