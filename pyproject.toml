@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wealth-toolkit"
+version = "0.2.0"
+description = "Gestion de patrimoine : planification, suivi de portefeuille, produits structurés, fiscalité France/Monaco"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Amen Bedoui" }]
+dependencies = ["numpy>=1.26", "pandas>=2.1", "matplotlib>=3.8", "reportlab>=4.0", "yfinance>=0.2.40"]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.35"]
+dev = ["pytest>=8.0", "streamlit>=1.35"]
+
+[project.scripts]
+wealth = "wealth.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["wealth*"]
+
+[tool.setuptools.package-data]
+wealth = ["tax_params.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
